@@ -8,6 +8,10 @@
     "build": "tsc && vite build",
     "preview": "vite preview"
   },
+  "engines": {
+    "node": ">=18"
+  },
+  "packageManager": "npm@10.9.2",
   "devDependencies": {
     "@types/react": "^19.1.11",
     "@types/react-dom": "^19.1.8",
