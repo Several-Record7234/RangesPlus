@@ -11,6 +11,32 @@ export type Ring = {
 
 export type RangeType = "circle" | "square";
 
+export type GridDisplay = "flat" | "isometric" | "dimetric";
+
+export const gridDisplayYScale: Record<GridDisplay, number> = {
+  flat: 1.0,
+  isometric: 0.5775,
+  dimetric: 0.5,
+};
+
+export function gridTypeToDisplay(gridType: string): GridDisplay {
+  switch (gridType) {
+    case "ISOMETRIC":
+      return "isometric";
+    case "DIMETRIC":
+      return "dimetric";
+    default:
+      return "flat";
+  }
+}
+
+export function resolveGridDisplay(
+  gridType: string,
+  override: GridDisplay | null | undefined
+): GridDisplay {
+  return override ?? gridTypeToDisplay(gridType);
+}
+
 export type Range = {
   name: string;
   id: string;

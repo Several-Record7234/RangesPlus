@@ -1,6 +1,7 @@
 import OBR, {
   buildEffect,
   buildLabel,
+  buildLine,
   buildShape,
   Math2,
   type InteractionManager,
@@ -15,7 +16,15 @@ import ringSksl from "./ring.frag";
 import { getPluginId } from "../util/getPluginId";
 import { getMetadata } from "../util/getMetadata";
 import { Color, getStoredTheme, Theme } from "../theme/themes";
-import { RangeType, Ring, Range, defaultRanges } from "../ranges/ranges";
+import {
+  RangeType,
+  Ring,
+  Range,
+  defaultRanges,
+  GridDisplay,
+  gridDisplayYScale,
+  resolveGridDisplay,
+} from "../ranges/ranges";
 import { flattenGridScale } from "../util/flattenGridScale";
 
 let rangeInteraction: InteractionManager<Item[]> | null = null;
@@ -40,15 +49,26 @@ function getLabelTextColor(color: Color, threshold: number) {
   return brightness < threshold ? "white" : "black";
 }
 
+async function getGridDisplay(): Promise<GridDisplay> {
+  const metadata = await OBR.scene.getMetadata();
+  const override = metadata[getPluginId("gridDisplay")] as
+    | GridDisplay
+    | null
+    | undefined;
+  const gridType = await OBR.scene.grid.getType();
+  return resolveGridDisplay(gridType, override);
+}
+
 function getRing(
   center: Vector2,
   offset: Vector2,
   size: number,
   name: string,
   color: string,
-  type: RangeType
+  type: RangeType,
+  yScale: number
 ) {
-  return buildShape()
+  const shape = buildShape()
     .fillOpacity(0)
     .strokeWidth(2)
     .strokeOpacity(0.9)
@@ -58,6 +78,44 @@ function getRing(
     .position(Math2.subtract(center, offset))
     .width(size)
     .height(size)
+    .name(name)
+    .metadata({
+      [getPluginId("offset")]: offset,
+    })
+    .disableHit(true)
+    .layer("POPOVER");
+
+  if (type === "circle" && yScale !== 1.0) {
+    shape.scale({ x: 1, y: yScale });
+  }
+
+  return shape.build();
+}
+
+function getRhombus(
+  center: Vector2,
+  radius: number,
+  name: string,
+  color: string,
+  yScale: number
+) {
+  // Isometric square: rotate 45deg then scale Y produces a rhombus
+  const d = radius * Math.SQRT2;
+  const offset: Vector2 = { x: 0, y: 0 };
+  const points: Vector2[] = [
+    { x: 0, y: -d * yScale },
+    { x: d, y: 0 },
+    { x: 0, y: d * yScale },
+    { x: -d, y: 0 },
+    { x: 0, y: -d * yScale },
+  ];
+  return buildLine()
+    .points(points)
+    .strokeColor(color)
+    .strokeWidth(2)
+    .strokeOpacity(0.9)
+    .strokeDash([10, 10])
+    .position(center)
     .name(name)
     .metadata({
       [getPluginId("offset")]: offset,
@@ -97,7 +155,8 @@ function getLabel(
 async function getShaders(
   center: Vector2,
   theme: Theme,
-  range: Range
+  range: Range,
+  gridDisplay: GridDisplay
 ): Promise<Item[]> {
   const dpi = await OBR.scene.grid.getDpi();
   const uniforms: Uniform[] = [];
@@ -175,6 +234,14 @@ half4 main(float2 coord) {
         name: "type",
         value: range.type === "square" ? 1 : 0,
       },
+      {
+        name: "isometric",
+        value: gridDisplay !== "flat" ? 1 : 0,
+      },
+      {
+        name: "yScale",
+        value: gridDisplayYScale[gridDisplay],
+      },
     ])
     .build();
 
@@ -184,10 +251,13 @@ half4 main(float2 coord) {
 async function getRings(
   center: Vector2,
   theme: Theme,
-  range: Range
+  range: Range,
+  gridDisplay: GridDisplay
 ): Promise<Item[]> {
   const dpi = await OBR.scene.grid.getDpi();
   const gridScale = await OBR.scene.grid.getScale();
+  const yScale = gridDisplayYScale[gridDisplay];
+  const isIso = gridDisplay !== "flat";
   const items = [];
   for (let i = 0; i < range.rings.length; i++) {
     const baseColor = theme.colors[i % theme.colors.length];
@@ -195,14 +265,37 @@ async function getRings(
     const textColor = getLabelTextColor(baseColor, 180);
     const ring = range.rings[i];
     const radius = getRadiusForRing(ring, dpi);
-    let ringOffset = { x: 0, y: 0 };
-    if (range.type === "square") {
-      ringOffset = { x: radius, y: radius };
+
+    if (range.type === "square" && isIso) {
+      items.push(getRhombus(center, radius, ring.name, color, yScale));
+    } else {
+      let ringOffset = { x: 0, y: 0 };
+      if (range.type === "square") {
+        ringOffset = { x: radius, y: radius };
+      }
+      items.push(
+        getRing(
+          center,
+          ringOffset,
+          radius * 2,
+          ring.name,
+          color,
+          range.type,
+          yScale
+        )
+      );
     }
-    items.push(
-      getRing(center, ringOffset, radius * 2, ring.name, color, range.type)
-    );
-    const labelItemOffset = { x: 0, y: radius + labelOffset };
+
+    let labelY: number;
+    if (!isIso) {
+      labelY = radius + labelOffset;
+    } else if (range.type === "circle") {
+      labelY = radius * yScale + labelOffset;
+    } else {
+      labelY = radius * Math.SQRT2 * yScale + labelOffset;
+    }
+    const labelItemOffset = { x: 0, y: labelY };
+
     let labelText = "";
     if (!range.hideLabel) {
       labelText += ring.name;
@@ -306,11 +399,17 @@ export function createRangeTool() {
       const range = (sceneMetadata[getPluginId("range")] ??
         defaultRanges[0]) as Range;
 
+      const gridDisplay = await getGridDisplay();
       const theme = getStoredTheme();
-      shaders = await getShaders(initialPosition, theme, range);
+      shaders = await getShaders(initialPosition, theme, range, gridDisplay);
       await OBR.scene.local.addItems(shaders);
 
-      const rangeItems = await getRings(initialPosition, theme, range);
+      const rangeItems = await getRings(
+        initialPosition,
+        theme,
+        range,
+        gridDisplay
+      );
       rangeInteraction = await OBR.interaction.startItemInteraction(rangeItems);
     },
     async onToolDragStart() {

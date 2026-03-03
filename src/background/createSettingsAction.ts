@@ -21,7 +21,7 @@ export function createSettingsAction() {
         id: getPluginId("popover/settings"),
         url: "/settings.html",
         width: 350,
-        height: 258,
+        height: 300,
         anchorElementId: elementId,
         anchorOrigin: {
           horizontal: "CENTER",

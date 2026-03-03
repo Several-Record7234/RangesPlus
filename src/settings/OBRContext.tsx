@@ -1,11 +1,18 @@
 import OBR, { type GridScale } from "@owlbear-rodeo/sdk";
 import { createContext, useContext, useState, useEffect } from "react";
 import { getPluginId } from "../util/getPluginId";
-import { defaultRanges, Range } from "../ranges/ranges";
+import {
+  defaultRanges,
+  Range,
+  GridDisplay,
+  resolveGridDisplay,
+} from "../ranges/ranges";
 
 type OBRContextValue = {
   gridScale: GridScale;
   range: Range;
+  gridDisplay: GridDisplay;
+  gridDisplayOverride: GridDisplay | null;
 };
 
 const OBRContext = createContext<OBRContextValue | null>(null);
@@ -28,7 +35,24 @@ export function OBRContextProvider({
     };
   }, []);
 
+  const [gridType, setGridType] = useState<string | null>(null);
+  useEffect(() => {
+    let mounted = true;
+    OBR.scene.grid.getType().then((type) => {
+      if (mounted) {
+        setGridType(type);
+      }
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   const [range, setRange] = useState<Range | null>(null);
+  // undefined = not yet loaded, null = auto (no override)
+  const [gridDisplayOverride, setGridDisplayOverride] = useState<
+    GridDisplay | null | undefined
+  >(undefined);
   useEffect(() => {
     let mounted = true;
     OBR.scene.getMetadata().then((metadata) => {
@@ -36,16 +60,25 @@ export function OBRContextProvider({
         const range = (metadata[getPluginId("range")] ??
           defaultRanges[0]) as Range;
         setRange(range);
+        const override = metadata[getPluginId("gridDisplay")] as
+          | GridDisplay
+          | null
+          | undefined;
+        setGridDisplayOverride(override ?? null);
       }
     });
   }, []);
 
-  if (!gridScale || !range) {
+  if (!gridScale || !range || !gridType || gridDisplayOverride === undefined) {
     return null;
   }
 
+  const gridDisplay = resolveGridDisplay(gridType, gridDisplayOverride);
+
   return (
-    <OBRContext.Provider value={{ gridScale, range }}>
+    <OBRContext.Provider
+      value={{ gridScale, range, gridDisplay, gridDisplayOverride }}
+    >
       {children}
     </OBRContext.Provider>
   );
