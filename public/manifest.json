@@ -1,10 +1,10 @@
 {
-  "name": "Ranges",
+  "name": "RangesPlus",
   "version": "1.0.0",
   "manifest_version": 1,
-  "author": "Owlbear Rodeo",
+  "author": "Owlbear Rodeo & Andrew C",
   "homepage_url": "https://extensions.owlbear.rodeo/ranges",
   "icon": "/logo.png",
   "background_url": "/background.html",
-  "description": "A distance tool that cuts to the heart of measuring ranges without the dagger of a complex setup"
+  "description": "A distance tool for measuring ranges without complex setup - including isometric and dimetric grids"
 }

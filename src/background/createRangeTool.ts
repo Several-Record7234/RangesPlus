@@ -4,6 +4,7 @@ import OBR, {
   buildLine,
   buildShape,
   Math2,
+  type GridScale,
   type InteractionManager,
   type Item,
   type Vector2,
@@ -47,16 +48,6 @@ function getLabelTextColor(color: Color, threshold: number) {
   // Luminance
   const brightness = (color.r * 299 + color.g * 587 + color.b * 114) / 1000;
   return brightness < threshold ? "white" : "black";
-}
-
-async function getGridDisplay(): Promise<GridDisplay> {
-  const metadata = await OBR.scene.getMetadata();
-  const override = metadata[getPluginId("gridDisplay")] as
-    | GridDisplay
-    | null
-    | undefined;
-  const gridType = await OBR.scene.grid.getType();
-  return resolveGridDisplay(gridType, override);
 }
 
 function getRing(
@@ -152,13 +143,13 @@ function getLabel(
     .build();
 }
 
-async function getShaders(
+function getShaders(
   center: Vector2,
   theme: Theme,
   range: Range,
-  gridDisplay: GridDisplay
-): Promise<Item[]> {
-  const dpi = await OBR.scene.grid.getDpi();
+  gridDisplay: GridDisplay,
+  dpi: number
+): Item[] {
   const uniforms: Uniform[] = [];
 
   /*
@@ -248,14 +239,14 @@ half4 main(float2 coord) {
   return [darken, color];
 }
 
-async function getRings(
+function getRings(
   center: Vector2,
   theme: Theme,
   range: Range,
-  gridDisplay: GridDisplay
-): Promise<Item[]> {
-  const dpi = await OBR.scene.grid.getDpi();
-  const gridScale = await OBR.scene.grid.getScale();
+  gridDisplay: GridDisplay,
+  dpi: number,
+  gridScale: GridScale
+): Item[] {
   const yScale = gridDisplayYScale[gridDisplay];
   const isIso = gridDisplay !== "flat";
   const items = [];
@@ -384,31 +375,54 @@ export function createRangeTool() {
         grabOffset = { x: 0, y: 0 };
       }
 
-      // Check the token interaction first so the move event doesn't fire for the
-      // range items while checking the permissions
-      if (
+      const isValidTarget =
         event.target &&
         !event.target.locked &&
-        event.target.type === "IMAGE" &&
-        (await canUpdateItem(event.target))
-      ) {
-        downTarget = event.target;
+        event.target.type === "IMAGE";
+
+      // Fetch all independent data in parallel to minimise latency before
+      // rangeInteraction is assigned — drag events that fire before it is set
+      // will silently skip the "follow mouse" branch.
+      const [canUpdate, sceneMetadata, gridType, dpi, gridScale] =
+        await Promise.all([
+          isValidTarget
+            ? canUpdateItem(event.target!)
+            : Promise.resolve(false),
+          OBR.scene.getMetadata(),
+          OBR.scene.grid.getType(),
+          OBR.scene.grid.getDpi(),
+          OBR.scene.grid.getScale(),
+        ]);
+
+      if (canUpdate) {
+        downTarget = event.target!;
       }
 
-      const sceneMetadata = await OBR.scene.getMetadata();
       const range = (sceneMetadata[getPluginId("range")] ??
         defaultRanges[0]) as Range;
+      const override = sceneMetadata[getPluginId("gridDisplay")] as
+        | GridDisplay
+        | null
+        | undefined;
+      const gridDisplay = resolveGridDisplay(gridType, override);
 
-      const gridDisplay = await getGridDisplay();
       const theme = getStoredTheme();
-      shaders = await getShaders(initialPosition, theme, range, gridDisplay);
-      await OBR.scene.local.addItems(shaders);
-
-      const rangeItems = await getRings(
+      shaders = getShaders(
         initialPosition,
         theme,
         range,
-        gridDisplay
+        gridDisplay,
+        dpi
+      );
+      await OBR.scene.local.addItems(shaders);
+
+      const rangeItems = getRings(
+        initialPosition,
+        theme,
+        range,
+        gridDisplay,
+        dpi,
+        gridScale
       );
       rangeInteraction = await OBR.interaction.startItemInteraction(rangeItems);
     },
