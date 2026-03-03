@@ -23,5 +23,9 @@ dist-ssr
 *.sln
 *.sw?
 
+# Other package managers
+pnpm-lock.yaml
+yarn.lock
+
 # Claude Code
 Claude.md
