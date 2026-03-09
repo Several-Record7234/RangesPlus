@@ -284,15 +284,25 @@ function getRings(
       );
     }
 
-    let labelY: number;
+    let labelItemOffset: Vector2;
     if (!isIso) {
-      labelY = radius + labelOffset;
+      labelItemOffset = { x: 0, y: radius + labelOffset };
     } else if (range.type === "circle") {
-      labelY = radius * yScale + labelOffset;
+      // 60° clockwise from top on the ellipse perimeter
+      const sin60 = 0.866025; // Math.sin(π/3)
+      const cos60 = 0.5;
+      labelItemOffset = {
+        x: -(radius * sin60),
+        y: radius * yScale * cos60 + labelOffset,
+      };
     } else {
-      labelY = radius * Math.SQRT2 * yScale + labelOffset;
+      // 60° clockwise from top on rhombus: midpoint of the top-right edge
+      const d = radius * Math.SQRT2;
+      labelItemOffset = {
+        x: -(d * 0.5),
+        y: d * yScale * 0.5 + labelOffset,
+      };
     }
-    const labelItemOffset = { x: 0, y: labelY };
 
     let labelText = "";
     if (!range.hideLabel) {
