@@ -288,19 +288,22 @@ function getRings(
     if (!isIso) {
       labelItemOffset = { x: 0, y: radius + labelOffset };
     } else if (range.type === "circle") {
-      // 60° clockwise from top on the ellipse perimeter
-      const sin60 = 0.866025; // Math.sin(π/3)
-      const cos60 = 0.5;
+      // 45° clockwise from top on the ellipse perimeter
+      const sin45 = Math.SQRT2 / 2; // ~0.7071
+      const cos45 = Math.SQRT2 / 2;
       labelItemOffset = {
-        x: -(radius * sin60),
-        y: radius * yScale * cos60 + labelOffset,
+        x: -(radius * sin45),
+        y: radius * yScale * cos45 + labelOffset,
       };
     } else {
-      // 60° clockwise from top on rhombus: midpoint of the top-right edge
+      // 45° clockwise from top on rhombus: on the top-right edge
+      // For isometric yScale ≈ 1/√3, 45° hits this edge at parameter
+      // t = yScale / (yScale + 1/√2)
       const d = radius * Math.SQRT2;
+      const t = yScale / (yScale + Math.SQRT2 / 2);
       labelItemOffset = {
-        x: -(d * 0.5),
-        y: d * yScale * 0.5 + labelOffset,
+        x: -(d * t),
+        y: d * yScale * (1 - t) + labelOffset,
       };
     }
 
