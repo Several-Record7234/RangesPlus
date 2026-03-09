@@ -34,6 +34,11 @@ let shaders: Item[] = [];
 let grabOffset: Vector2 = { x: 0, y: 0 };
 let downTarget: Item | null = null;
 let labelOffset = -16;
+// Resolves when onToolDown has finished setting up interactions, so that
+// drag events arriving before setup completes can await it instead of
+// silently skipping the "follow mouse" branch.
+let setupReady: Promise<void> = Promise.resolve();
+let resolveSetup: (() => void) | null = null;
 
 function getColorString(color: Color) {
   return `rgb(${color.r}, ${color.g}, ${color.b})`;
@@ -323,6 +328,8 @@ function cleanup() {
     shaders = [];
   }
   downTarget = null;
+  resolveSetup?.();
+  resolveSetup = null;
 }
 
 async function finalizeMove() {
@@ -364,6 +371,9 @@ export function createRangeTool() {
     },
     async onToolDown(_, event) {
       cleanup();
+      setupReady = new Promise((r) => {
+        resolveSetup = r;
+      });
 
       const tokenPosition =
         event.target && !event.target.locked && event.target.position;
@@ -434,6 +444,7 @@ export function createRangeTool() {
         gridScale
       );
       rangeInteraction = await OBR.interaction.startItemInteraction(rangeItems);
+      resolveSetup?.();
     },
     async onToolDragStart() {
       if (downTarget) {
@@ -443,6 +454,8 @@ export function createRangeTool() {
       }
     },
     async onToolDragMove(_, event) {
+      // Wait for onToolDown to finish setting up interactions
+      await setupReady;
       // Check the down target first as that's the earliest indicator of a valid target
       if (downTarget) {
         if (tokenInteraction) {

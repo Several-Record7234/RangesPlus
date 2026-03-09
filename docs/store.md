@@ -1,11 +1,10 @@
 ---
-title: Ranges
+title: RangesPlus
 description: A distance tool that cuts to the heart of measuring ranges without the dagger of a complex setup
-author: Owlbear Rodeo
+author: Andrew C
 image: https://raw.githubusercontent.com/owlbear-rodeo/ranges/main/docs/header.jpg
 icon: https://ranges.owlbear.rodeo/logo.png
 tags:
-  - built-by-owlbear
   - tool
 manifest: https://ranges.owlbear.rodeo/manifest.json
 learn-more: https://extensions.owlbear.rodeo/ranges
