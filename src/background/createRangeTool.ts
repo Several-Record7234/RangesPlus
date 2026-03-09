@@ -1,7 +1,7 @@
 import OBR, {
   buildEffect,
   buildLabel,
-  buildLine,
+  buildCurve,
   buildShape,
   Math2,
   type GridScale,
@@ -103,11 +103,13 @@ function getRhombus(
     { x: d, y: 0 },
     { x: 0, y: d * yScale },
     { x: -d, y: 0 },
-    { x: 0, y: -d * yScale },
   ];
-  return buildLine()
+  return buildCurve()
     .points(points)
+    .tension(0)
+    .closed(true)
     .strokeColor(color)
+    .fillOpacity(0)
     .strokeWidth(2)
     .strokeOpacity(0.9)
     .strokeDash([10, 10])
