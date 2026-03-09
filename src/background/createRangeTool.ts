@@ -405,6 +405,15 @@ export function createRangeTool() {
         | null
         | undefined;
       const gridDisplay = resolveGridDisplay(gridType, override);
+      const yScale = gridDisplayYScale[gridDisplay];
+
+      // On isometric/dimetric grids, getDpi() returns a screen-space dimension
+      // (e.g. the cell's vertical diagonal), but the shader distance functions
+      // undo the isometric transform and measure in pre-transform (logical)
+      // space. The logical cell side is larger than the screen DPI by a factor
+      // of 1/(√2·yScale), so we scale accordingly.
+      const logicalDpi =
+        yScale < 1.0 ? dpi / (Math.SQRT2 * yScale) : dpi;
 
       const theme = getStoredTheme();
       shaders = getShaders(
@@ -412,7 +421,7 @@ export function createRangeTool() {
         theme,
         range,
         gridDisplay,
-        dpi
+        logicalDpi
       );
       await OBR.scene.local.addItems(shaders);
 
@@ -421,7 +430,7 @@ export function createRangeTool() {
         theme,
         range,
         gridDisplay,
-        dpi,
+        logicalDpi,
         gridScale
       );
       rangeInteraction = await OBR.interaction.startItemInteraction(rangeItems);
