@@ -117,14 +117,14 @@ export function ThemeSelector() {
                   height: "100%",
                 }}
               >
-                {theme.colors.map((color) => (
+                {theme.colors.map((color, i) => (
                   <Box
                     sx={{
                       width: "100%",
                       height: "100%",
                       backgroundColor: `rgb(${color.r}, ${color.g}, ${color.b})`,
                     }}
-                    key={color.r + color.g + color.b}
+                    key={i}
                   />
                 ))}
               </Box>

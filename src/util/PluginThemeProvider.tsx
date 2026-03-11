@@ -72,10 +72,10 @@ function getTheme(theme?: Theme) {
           },
           switchBase: {
             padding: 1,
-            "&$checked, &$colorPrimary$checked, &$colorSecondary$checked": {
+            "&.Mui-checked": {
               transform: "translateX(16px)",
               color: "#fff",
-              "& + $track": {
+              "& + .MuiSwitch-track": {
                 opacity: 1,
                 border: "none",
               },

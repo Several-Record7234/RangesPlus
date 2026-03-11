@@ -293,11 +293,11 @@ function getRings(
       labelItemOffset = { x: 0, y: radius + labelOffset };
     } else if (range.type === "circle") {
       // 45° clockwise from top on the ellipse perimeter
-      const sin45 = Math.SQRT2 / 2; // ~0.7071
-      const cos45 = Math.SQRT2 / 2;
+      // sin(45°) = cos(45°) = √2/2
+      const k = Math.SQRT2 / 2;
       labelItemOffset = {
-        x: -(radius * sin45),
-        y: radius * yScale * cos45 + labelOffset,
+        x: -(radius * k),
+        y: radius * yScale * k + labelOffset,
       };
     } else {
       // 45° clockwise from top on rhombus: on the top-right edge

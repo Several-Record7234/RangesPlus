@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import ListItem from "@mui/material/ListItem";
 import ListItemText from "@mui/material/ListItemText";
@@ -50,6 +50,7 @@ export function RingItem({
 }) {
   const { gridScale } = useOBRContext();
   const [localName, setLocalName] = useState(ring.name);
+  useEffect(() => setLocalName(ring.name), [ring.name]);
 
   const primary = onChange ? (
     <TextField

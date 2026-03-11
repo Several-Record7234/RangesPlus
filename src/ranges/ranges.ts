@@ -15,7 +15,7 @@ export type GridDisplay = "flat" | "isometric" | "dimetric";
 
 export const gridDisplayYScale: Record<GridDisplay, number> = {
   flat: 1.0,
-  isometric: 0.5775,
+  isometric: 1 / Math.sqrt(3), // approx. 0.5774
   dimetric: 0.5,
 };
 

@@ -1,4 +1,5 @@
 import { Metadata } from "@owlbear-rodeo/sdk";
+import { isPlainObject } from "./isPlainObject";
 
 /**
  * Helper to widen the type definition passed to `getMetadata`.
@@ -19,9 +20,17 @@ export function getMetadata<T>(
   defaultValue: ToPrimitive<T>
 ): ToPrimitive<T> {
   const value = metadata[key];
-  if (typeof value === typeof defaultValue) {
-    return value as ToPrimitive<T>;
-  } else {
+  if (typeof defaultValue === "object" && defaultValue !== null) {
+    if (isPlainObject(value) && isPlainObject(defaultValue)) {
+      const keys = Object.keys(defaultValue);
+      if (keys.every((k) => k in value && typeof value[k] === typeof defaultValue[k])) {
+        return value as ToPrimitive<T>;
+      }
+    }
     return defaultValue;
   }
+  if (typeof value === typeof defaultValue) {
+    return value as ToPrimitive<T>;
+  }
+  return defaultValue;
 }

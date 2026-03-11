@@ -7,59 +7,78 @@ export function syncSettings() {
   onScene(async () => {
     const isGm = (await OBR.player.getRole()) === "GM";
     if (isGm) {
-      syncRangeIfNeeded();
+      await syncRangeIfNeeded();
     }
   });
 
   onGm(async () => {
     const sceneReady = await OBR.scene.isReady();
     if (sceneReady) {
-      syncRangeIfNeeded();
+      await syncRangeIfNeeded();
     }
   });
 }
 
-async function onScene(func: () => void) {
-  OBR.scene.onReadyChange((ready) => {
-    if (ready) {
+function onScene(func: () => void) {
+  let fired = false;
+  const run = () => {
+    if (!fired) {
+      fired = true;
       func();
     }
+  };
+  OBR.scene.onReadyChange((ready) => {
+    if (ready) {
+      run();
+    }
   });
-  const ready = await OBR.scene.isReady();
-  if (ready) {
-    func();
-  }
+  OBR.scene.isReady().then((ready) => {
+    if (ready) {
+      run();
+    }
+  });
 }
 
-async function onGm(func: () => void) {
+function onGm(func: () => void) {
+  let fired = false;
+  const run = () => {
+    if (!fired) {
+      fired = true;
+      func();
+    }
+  };
   let isGm = false;
   OBR.player.onChange((player) => {
     if (player.role === "GM" && !isGm) {
-      func();
+      run();
     }
     isGm = player.role === "GM";
   });
-  isGm = (await OBR.player.getRole()) === "GM";
-  if (isGm) {
-    func();
-  }
+  OBR.player.getRole().then((role) => {
+    isGm = role === "GM";
+    if (isGm) {
+      run();
+    }
+  });
 }
 
-let syncing = false;
+let syncPromise: Promise<void> | null = null;
 async function syncRangeIfNeeded() {
-  if (syncing) {
-    return;
+  if (syncPromise) {
+    return syncPromise;
   }
-  try {
-    syncing = true;
-    const metadata = await OBR.scene.getMetadata();
-    const range = metadata[getPluginId("range")];
-    if (range) {
-      return;
+  syncPromise = (async () => {
+    try {
+      const metadata = await OBR.scene.getMetadata();
+      const range = metadata[getPluginId("range")];
+      if (range) {
+        return;
+      }
+      const lastUsedRange = getLastUsedRange() ?? defaultRanges[0];
+      await OBR.scene.setMetadata({ [getPluginId("range")]: lastUsedRange });
+    } finally {
+      syncPromise = null;
     }
-    const lastUsedRange = getLastUsedRange() ?? defaultRanges[0];
-    await OBR.scene.setMetadata({ [getPluginId("range")]: lastUsedRange });
-  } finally {
-    syncing = false;
-  }
+  })();
+  return syncPromise;
 }

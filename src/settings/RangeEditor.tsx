@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import Stack from "@mui/material/Stack";
 import List from "@mui/material/List";
@@ -121,6 +121,7 @@ function Controls({
   onDelete: (range: Range) => void;
 }) {
   const [localName, setLocalName] = useState(range.name);
+  useEffect(() => setLocalName(range.name), [range.name]);
   return (
     <>
       <Divider sx={{ my: 1 }} />

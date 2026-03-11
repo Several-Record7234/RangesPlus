@@ -36,7 +36,7 @@ const NumberField = forwardRef<HTMLDivElement, NumberFieldProps>(
 
     useLayoutEffect(() => {
       setLocalValue(numberToText(value));
-    }, [value]);
+    }, [value, numberToText]);
 
     function isValid(number: number) {
       return !isNaN(number);
