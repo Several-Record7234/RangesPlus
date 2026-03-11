@@ -22,63 +22,37 @@ export function OBRContextProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const [gridScale, setGridScale] = useState<GridScale | null>(null);
+  const [value, setValue] = useState<OBRContextValue | null>(null);
+
   useEffect(() => {
     let mounted = true;
-    OBR.scene.grid.getScale().then((scale) => {
-      if (mounted) {
-        setGridScale(scale);
-      }
+    Promise.all([
+      OBR.scene.grid.getScale(),
+      OBR.scene.grid.getType(),
+      OBR.scene.getMetadata(),
+    ]).then(([gridScale, gridType, metadata]) => {
+      if (!mounted) return;
+      const range = (metadata[getPluginId("range")] ??
+        defaultRanges[0]) as Range;
+      const override = metadata[getPluginId("gridDisplay")] as
+        | GridDisplay
+        | null
+        | undefined;
+      const gridDisplayOverride = override ?? null;
+      const gridDisplay = resolveGridDisplay(gridType, gridDisplayOverride);
+      setValue({ gridScale, range, gridDisplay, gridDisplayOverride });
     });
     return () => {
       mounted = false;
     };
   }, []);
 
-  const [gridType, setGridType] = useState<string | null>(null);
-  useEffect(() => {
-    let mounted = true;
-    OBR.scene.grid.getType().then((type) => {
-      if (mounted) {
-        setGridType(type);
-      }
-    });
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  const [range, setRange] = useState<Range | null>(null);
-  // undefined = not yet loaded, null = auto (no override)
-  const [gridDisplayOverride, setGridDisplayOverride] = useState<
-    GridDisplay | null | undefined
-  >(undefined);
-  useEffect(() => {
-    let mounted = true;
-    OBR.scene.getMetadata().then((metadata) => {
-      if (mounted) {
-        const range = (metadata[getPluginId("range")] ??
-          defaultRanges[0]) as Range;
-        setRange(range);
-        const override = metadata[getPluginId("gridDisplay")] as
-          | GridDisplay
-          | null
-          | undefined;
-        setGridDisplayOverride(override ?? null);
-      }
-    });
-  }, []);
-
-  if (!gridScale || !range || !gridType || gridDisplayOverride === undefined) {
+  if (!value) {
     return null;
   }
 
-  const gridDisplay = resolveGridDisplay(gridType, gridDisplayOverride);
-
   return (
-    <OBRContext.Provider
-      value={{ gridScale, range, gridDisplay, gridDisplayOverride }}
-    >
+    <OBRContext.Provider value={value}>
       {children}
     </OBRContext.Provider>
   );
