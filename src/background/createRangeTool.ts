@@ -11,6 +11,7 @@ import OBR, {
   type Uniform,
   type Matrix,
 } from "@owlbear-rodeo/sdk";
+import type { Image } from "@owlbear-rodeo/sdk/lib/types/items/Image";
 import rangeIcon from "../assets/range.svg";
 import { canUpdateItem } from "./permission";
 import ringSksl from "./ring.frag";
@@ -44,9 +45,10 @@ function getColorString(color: Color) {
   return `rgb(${color.r}, ${color.g}, ${color.b})`;
 }
 
-function getRadiusForRing(ring: Ring, dpi: number) {
-  // Offset the ring by half a grid unit to account for the center of the grid
-  return ring.radius * dpi + dpi / 2;
+function getRadiusForRing(ring: Ring, dpi: number, tokenGridSize: number) {
+  // Offset the ring radius by half the token's footprint so rings
+  // emanate from the token edge, not its center.
+  return ring.radius * dpi + (dpi * tokenGridSize) / 2;
 }
 
 function getLabelTextColor(color: Color, threshold: number) {
@@ -155,7 +157,8 @@ function getShaders(
   theme: Theme,
   range: Range,
   gridDisplay: GridDisplay,
-  dpi: number
+  dpi: number,
+  tokenGridSize: number
 ): Item[] {
   const uniforms: Uniform[] = [];
 
@@ -177,8 +180,8 @@ function getShaders(
     const color2 = theme.colors[ring2Index % theme.colors.length];
     const ring1 = range.rings[ring1Index];
     const ring2 = range.rings[ring2Index];
-    const radius1 = ring1 ? getRadiusForRing(ring1, dpi) : 0;
-    const radius2 = ring2 ? getRadiusForRing(ring2, dpi) : 0;
+    const radius1 = ring1 ? getRadiusForRing(ring1, dpi, tokenGridSize) : 0;
+    const radius2 = ring2 ? getRadiusForRing(ring2, dpi, tokenGridSize) : 0;
     const value: Matrix = [
       radius1,
       radius2,
@@ -252,7 +255,8 @@ function getRings(
   range: Range,
   gridDisplay: GridDisplay,
   dpi: number,
-  gridScale: GridScale
+  gridScale: GridScale,
+  tokenGridSize: number
 ): Item[] {
   const yScale = gridDisplayYScale[gridDisplay];
   const isIso = gridDisplay !== "flat";
@@ -262,7 +266,7 @@ function getRings(
     const color = getColorString(baseColor);
     const textColor = getLabelTextColor(baseColor, 180);
     const ring = range.rings[i];
-    const radius = getRadiusForRing(ring, dpi);
+    const radius = getRadiusForRing(ring, dpi, tokenGridSize);
 
     if (range.type === "square" && isIso) {
       items.push(getRhombus(center, radius, ring.name, color, yScale));
@@ -419,6 +423,14 @@ export function createRangeTool() {
           OBR.scene.grid.getScale(),
         ]);
 
+      // Derive the token's footprint in grid cells from the image dimensions.
+      // Defaults to 1 (single cell) when clicking empty space or non-image items.
+      let tokenGridSize = 1;
+      if (isValidTarget) {
+        const img = event.target as unknown as Image;
+        tokenGridSize = (img.image.width / img.grid.dpi) * img.scale.x;
+      }
+
       if (canUpdate) {
         downTarget = event.target!;
       }
@@ -446,7 +458,8 @@ export function createRangeTool() {
         theme,
         range,
         gridDisplay,
-        logicalDpi
+        logicalDpi,
+        tokenGridSize
       );
       await OBR.scene.local.addItems(shaders);
 
@@ -456,7 +469,8 @@ export function createRangeTool() {
         range,
         gridDisplay,
         logicalDpi,
-        gridScale
+        gridScale,
+        tokenGridSize
       );
       rangeInteraction = await OBR.interaction.startItemInteraction(rangeItems);
       resolveSetup?.();
