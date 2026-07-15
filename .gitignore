@@ -29,3 +29,10 @@ yarn.lock
 
 # Claude Code
 Claude.md
+
+# Claude-related files
+.claude/
+CLAUDE.md
+
+# Build artefacts
+*.tsbuildinfo
