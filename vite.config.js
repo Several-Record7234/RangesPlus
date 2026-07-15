@@ -27,6 +27,7 @@ export default defineConfig({
         background: resolve(__dirname, "background.html"),
         theme: resolve(__dirname, "theme.html"),
         settings: resolve(__dirname, "settings.html"),
+        whatsNew: resolve(__dirname, "whats-new.html"),
       },
     },
   },
