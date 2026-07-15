@@ -1,24 +1,8 @@
 # RangesPlus — Progress
 
-## ⚠ INCOMING BRIEF (portfolio, 2026-06-23): Restore the hollow typecheck gate
+## ✓ RESOLVED (2026-07-15): Hollow typecheck gate restored
 
-**Problem.** `npm run build`'s typecheck step is **hollow** — it checks zero files, so type errors ship undetected (esbuild strips types without checking them).
-
-**Why.** The root `tsconfig.json` is solution-style (`"files": []` + `references` to `tsconfig.app.json` / `tsconfig.node.json`). Bare `tsc` compiles the empty `files` array and does **not** descend into referenced projects (that requires build mode, `-b`). The build (`"build": "tsc && vite build"`) runs bare `tsc`, so it always exits 0.
-
-**Confirm (optional).** `npx tsc` (exit 0, no output) vs `npx tsc -b` (real check, reports errors) disagree.
-
-**Fix (one word).** In `package.json`, change the build script's `tsc` → `tsc -b`:
-`"build": "tsc -b && vite build"`
-No `composite: true` needed; if the referenced configs already set `noEmit: true`, `tsc -b` emits nothing. (If `tsc -b` complains about emit/composite, set `noEmit: true` in `tsconfig.app.json` and `tsconfig.node.json`.) Do not change the tsconfig shape.
-
-**Budget a clearing pass.** Flipping this on surfaces latent errors esbuild ignored. Recurring categories: SDK 3.1.0 `Item` is a flat interface — `readonly id`/`type`, no `image`/`grid` (those live on `Image extends Item`): `item.id = x` → TS2540, `image.image`/`image.grid` → TS2339, `Extract<Item,{image,grid}>` → `never`; fix with `isImage()` narrowing or `as Image`, build copies via `buildImage(...)`. Also `noUnusedLocals/Parameters` (TS6133), `useState` literal narrowing (annotate `useState<number>(4)`, TS2345), stale type-only imports (TS2305). (RangesPlus is MUI, so also watch for stale MUI type imports.)
-
-**Verify.** `npm run build` now fails on any type error and passes only when the code genuinely typechecks.
-
-**Note.** `tsconfig.app.json` likely has `"exclude": ["src/**/*.test.ts"]`, so test files stay unchecked even after this fix.
-
-Portfolio context: audited 2026-06-23. Forms + RangesPlus were the only hollow projects; Sending had no gate at all. See the portfolio-oversight "Typecheck-gate integrity" check.
+The build's `tsc` step checked zero files (root `tsconfig.json` is solution-style: `"files": []` + references, and bare `tsc` does not descend into referenced projects). Fixed by switching the build script to `tsc -b` (commit `59444db`). `tsc -b` descended without needing `composite: true`. Fixing this also surfaced a latent bug: `tsconfig.node.json` included the non-existent `vite.config.ts` (project uses `vite.config.js`), giving the node sub-project zero inputs and an error under build mode; repointed to `vite.config.js` + `allowJs`. Verified genuine: an injected `TS2322` fails the build (exit 2), clean code passes. Build mode now emits `*.tsbuildinfo` (gitignored). No latent app-code type errors surfaced (the clearing pass was clean).
 
 ---
 
@@ -58,9 +42,11 @@ Portfolio context: audited 2026-06-23. Forms + RangesPlus were the only hollow p
 
 ## Next Steps
 
-- [ ] Include What's New modal files in next commit: `src/changelog.ts`, `src/whatsNew.tsx`, `whats-new.html`, modified `vite.config.js`, `src/background/main.ts`
+- [x] Include What's New modal files (`src/changelog.ts`, `src/whatsNew.tsx`, `vite.config.js`, `src/background/main.ts`) — committed `4de3c84`, pushed
+- [x] Restore the hollow typecheck gate (`tsc -b`) — commit `59444db`, pushed
 - [ ] Final testing pass on dimetric grids
 - [ ] Decide v0.9.2 → v1.0.0 promotion
+- [ ] Consider renaming the What's New modal ID to the standardised `com.several-record.rangesplus` namespace (currently `dev.rangesplus.whats-new`); low priority, cosmetic
 
 ## Security — Dependency Audit (2026-03-26, portfolio overseer)
 
@@ -72,4 +58,4 @@ Portfolio context: audited 2026-06-23. Forms + RangesPlus were the only hollow p
 
 ## Housekeeping — Next Session
 
-- [ ] Apply standard `.claude/settings.json` baseline template (see Recommendation B in `c:\Coding\agent-permissions-audit.md`)
+- [x] `.claude/settings.json` untracked and gitignored (2026-07-15, commit `4962727`); permission allowlist applied locally
